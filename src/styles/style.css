@@ -17,6 +17,14 @@ header {
     padding: 0.2rem 0.4rem;
 }
 
+#topform .form-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: none !important;
+    padding-right: 0.4rem !important;
+}
+
 #stats-bar {
     background-color: white;
     border-bottom: 1px solid #dee2e6;
@@ -114,4 +122,21 @@ a:hover {
 #popup-content small {
     display: block;
     margin-top: 4px;
+}
+
+/* Map Controls Styling */
+.ol-attribution {
+    bottom: 5px !important;
+    right: 5px !important;
+}
+
+.ol-attribution:not(.ol-collapsed) {
+    background: rgba(255, 255, 255, 0.7) !important;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.ol-zoom {
+    top: 10px !important;
+    left: 10px !important;
 }

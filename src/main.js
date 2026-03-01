@@ -1,4 +1,5 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'ol/ol.css';
 import { Modal } from 'bootstrap';
 import MapController from './MapController';
 import MarkerManager from './MarkerManager';
@@ -28,17 +29,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `${Math.floor(seconds / 3600)} hours`;
     }
 
-    function updateBandDistribution(monitors) {
-        if (!monitors) return;
-        const band_count = {};
-        // Iterate over the monitors and build the statistics.
-        for (const monitor of monitors) {
-            for (const band of monitor.bands.split(',')) {
-                band_count[band] = (band_count[band] || 0) + 1;
-            }
-        }
+    function updateBandDistribution(stats, total) {
+        if (!stats) return;
         let html = '';
-        const sortedBands = Object.entries(band_count)
+        const sortedBands = Object.entries(stats)
             .sort(([, a], [, b]) => b - a);
 
         sortedBands.forEach(([band, count]) => {
@@ -46,15 +40,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             html += `<span title="${band}" style="color: #${color}; border-left: 4px solid #${color}; padding-left: 4px; border-radius: 2px; font-weight: 500;">${count} on ${band}</span>`;
         });
         bandDistribution.innerHTML = html;
-        activeMonitorsSpan.textContent = `There are ${monitors.length} active monitors:`;
+        activeMonitorsSpan.textContent = `There are ${total.toLocaleString()} active monitors:`;
     }
 
     async function updateGlobalStats() {
         try {
-            const response = await fetch(`${BASE_URL}/api/monitors`);
+            const response = await fetch(`${BASE_URL}/api/monitor-stats`);
             const data = await response.json();
-            if (data && data.monitors) {
-                updateBandDistribution(data.monitors);
+            if (data && data.stats) {
+                updateBandDistribution(data.stats, data.total);
                 // Remove the d-none class from the info bar.
                 infoBar.classList.remove('d-none');
             }
@@ -315,6 +309,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         optionsModal.hide();
     });
 
+    function calculateDistance(lat1, lon1, lat2, lon2, unit) {
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+        if (unit === 'miles') return (d * 0.621371).toFixed(0) + ' miles';
+        return d.toFixed(0) + ' km';
+    }
+
     // --- Infobox Formatting ---
     mapController.onPopupRequest = (props) => {
         const isMonitor = !props.senderCallsign;
@@ -333,6 +340,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isMonitor) {
             html += `<br>Rcvd from <strong>${props.senderCallsign}</strong>`;
             if (props.senderLocator) html += ` (${props.senderLocator})`;
+
+            // Distance calculation
+            const sLat = parseFloat(props.senderLat);
+            const sLon = parseFloat(props.senderLng);
+            const rLat = parseFloat(props.receiverLat);
+            const rLon = parseFloat(props.receiverLng);
+            if (!isNaN(sLat) && !isNaN(sLon) && !isNaN(rLat) && !isNaN(rLon)) {
+                const dist = calculateDistance(sLat, sLon, rLat, rLon, currentOptions['dist-unit']);
+                html += `<br>Distance: ${dist}`;
+            }
         }
         if (frequency) {
             html += `<br>Freq: ${frequency} MHz`;

@@ -1,5 +1,6 @@
 import Map from 'ol/Map';
 import View from 'ol/View';
+import { defaults as defaultControls } from 'ol/control/defaults';
 import ImageLayer from 'ol/layer/Image';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -7,7 +8,7 @@ import { fromLonLat } from 'ol/proj';
 import { apply } from 'ol-mapbox-style';
 import Feature from 'ol/Feature';
 import LineString from 'ol/geom/LineString';
-import { Arc } from 'arc.js';
+import { GreatCircle } from 'arc';
 import SunSource from './layers/SunSource';
 import MaidenheadSource from './layers/MaidenheadSource';
 import MarkerManager from './MarkerManager';
@@ -22,6 +23,7 @@ class MapController {
         this.onPopupRequest = null;
         this.hideLines = false;
         this.linesAlways = false;
+        this.popupTimer = null;
 
         this.layers = {};
         this.initMap();
@@ -38,7 +40,9 @@ class MapController {
     }
 
     updateLinesVisibility() {
-        this.layers.lines.setVisible(!this.hideLines);
+        if (this.layers.lines) {
+            this.layers.lines.setVisible(!this.hideLines);
+        }
     }
 
     addLine(startLon, startLat, endLon, endLat) {
@@ -48,8 +52,8 @@ class MapController {
         const end = { x: endLon, y: endLat };
 
         try {
-            const generator = new Arc(start, end);
-            const line = generator.arc(100); // 100 points for smoothness
+            const generator = new GreatCircle(start, end);
+            const line = generator.Arc(100); // 100 points for smoothness
             const coords = line.coords.map(c => fromLonLat(c));
 
             const feature = new Feature({
@@ -65,6 +69,12 @@ class MapController {
         // Create the map container
         this.map = new Map({
             target: this.targetId,
+            controls: defaultControls({
+                rotate: false,
+                attributionOptions: {
+                    collapsible: false
+                }
+            }),
             view: new View({
                 center: fromLonLat([0, 20]),
                 zoom: 2
@@ -136,9 +146,21 @@ class MapController {
                 return;
             }
             const pixel = this.map.getEventPixel(evt.originalEvent);
-            const feature = this.map.forEachFeatureAtPixel(pixel, (f) => f);
+            const feature = this.map.forEachFeatureAtPixel(pixel, (f) => {
+                // Only trigger for markers that likely have data
+                if (f.get('senderLat') || f.get('callsign') || f.get('receiverCallsign')) {
+                    return f;
+                }
+                return null;
+            }, {
+                layerFilter: (layer) => layer === this.layers.markers
+            });
 
             if (feature) {
+                if (this.popupTimer) {
+                    clearTimeout(this.popupTimer);
+                    this.popupTimer = null;
+                }
                 this.map.getTargetElement().style.cursor = 'pointer';
                 const props = feature.getProperties();
                 this.showPopup(props);
@@ -146,8 +168,6 @@ class MapController {
                 // Show line on hover if not in 'linesAlways' mode
                 if (!this.hideLines && !this.linesAlways && props.senderLat) {
                     this.clearLines();
-                    // We need the 'other' end. main.js can provide this or we store it.
-                    // For now, I'll assume props has both ends if it's a report.
                     const sLat = parseFloat(props.senderLat);
                     const sLon = parseFloat(props.senderLng);
                     const rLat = parseFloat(props.receiverLat);
@@ -158,12 +178,21 @@ class MapController {
                 }
             } else {
                 this.map.getTargetElement().style.cursor = '';
-                this.hidePopup();
-                if (!this.linesAlways) this.clearLines();
+                if (!this.popupTimer) {
+                    this.popupTimer = setTimeout(() => {
+                        this.hidePopup();
+                        if (!this.linesAlways) this.clearLines();
+                        this.popupTimer = null;
+                    }, 30000);
+                }
             }
         });
 
         this.map.on('click', () => {
+            if (this.popupTimer) {
+                clearTimeout(this.popupTimer);
+                this.popupTimer = null;
+            }
             this.hidePopup();
         });
     }
@@ -192,10 +221,6 @@ class MapController {
         const feature = MarkerManager.createMarkerFeature(pos, options);
         this.markerSource.addFeature(feature);
         return feature;
-    }
-
-    clearMarkers() {
-        this.markerSource.clear();
     }
 
     updateSunLayer() {
