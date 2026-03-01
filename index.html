@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSK Reporter - Modern Map</title>
+  <link rel="stylesheet" href="./src/styles/style.css">
+</head>
+
+<body>
+  <header class="p-2 bg-light border-bottom">
+    <div class="container-fluid">
+      <div id="topform" class="row align-items-center g-2 text-nowrap">
+        <div class="col-auto">
+          On
+          <select id="selectband" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="all">all bands</option>
+          </select>,
+          show
+          <select id="selectsigs" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="all">signals</option>
+            <option value="ctry">countries</option>
+          </select>
+          <select id="selecttxrx" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="all">sent/rcvd by</option>
+            <option value="tx">sent by</option>
+            <option value="rx">rcvd by</option>
+          </select>
+          <select id="selectwhat" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="callsign">the callsign</option>
+            <option value="country">country of callsign</option>
+            <option value="grid">grid square</option>
+            <option value="all">anyone</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="text" id="callsign" class="form-control form-control-sm" placeholder="Callsign">
+        </div>
+        <div class="col-auto">
+          using
+          <select id="selectmode" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="all">all modes</option>
+            <option value="FT8">FT8</option>
+            <option value="JT65">JT65</option>
+            <option value="PSK*">PSK</option>
+          </select>
+          over the last
+          <select id="selecttimerange" class="form-select form-select-sm d-inline-block w-auto">
+            <option value="86400">24 hours</option>
+            <option value="43200">12 hours</option>
+            <option value="21600">6 hours</option>
+            <option value="10800">3 hours</option>
+            <option value="7200">2 hours</option>
+            <option value="3600">1 hour</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button id="go-btn" class="btn btn-sm btn-primary">Go!</button>
+          <a href="#" id="show-options" class="ms-2">Display options</a>
+          <a href="#" id="permalink" class="ms-2">Permalink</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="stats-bar" class="bg-white p-1 border-bottom small px-3">
+    <span id="active-monitors">Loading stats...</span>
+  </div>
+
+  <div id="info-bar" class="bg-light p-2 border-bottom small px-3 d-none">
+    <div id="monitoring-status"></div>
+    <div id="band-distribution" class="mt-1 text-muted"></div>
+  </div>
+
+  <main role="main">
+    <div id="map-container">
+      <div id="map"></div>
+      <div id="popup" class="ol-popup">
+        <div id="popup-content"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-muted py-1 bg-light border-top small">
+    <div class="container-fluid d-flex justify-content-between">
+      <div>
+        <a href="https://pskreporter.info/cgi-bin/pskstats.pl">Statistics</a> &mdash;
+        Comments to <a href="mailto:pjsg-pskmapn@pskreporter.info">Philip Gladstone</a> &mdash;
+        <a href="https://groups.google.com/forum/#!forum/psk-reporter">Online discussions</a> &mdash;
+        Reception records: <span id="reccnt">0</span>
+      </div>
+      <div>
+        <a href="https://pskreporter.info/" class="text-info fw-bold text-decoration-none">PSKREPORTER.INFO</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Display Options Modal: TODO: Add all the missing options -->
+  <div class="modal fade" id="optionsModal" tabindex="-1" aria-labelledby="optionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="optionsModalLabel">Display Options</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="optionsForm">
+            <div class="row">
+              <!-- Column 1: Visibility -->
+              <div class="col-md-6">
+                <h5>Visibility</h5>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="show-grid" checked>
+                  <label class="form-check-label" for="show-grid">Show Maidenhead Grid</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="show-night" checked>
+                  <label class="form-check-label" for="show-night">Show Night Shadow</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="hide-faint">
+                  <label class="form-check-label" for="hide-faint">Hide faint monitors</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="hide-no-reports">
+                  <label class="form-check-label" for="hide-no-reports">Hide monitors if no reports</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="show-snr">
+                  <label class="form-check-label" for="show-snr">Show SNR</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="hide-lines">
+                  <label class="form-check-label" for="hide-lines">Hide connecting lines</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="lines-always">
+                  <label class="form-check-label" for="lines-always">Show connecting lines always</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="no-auto-pan">
+                  <label class="form-check-label" for="no-auto-pan">No auto pan/zoom</label>
+                </div>
+              </div>
+
+              <!-- Column 2: Markers & Map -->
+              <div class="col-md-6">
+                <h5>Markers</h5>
+                <div class="mb-3">
+                  <label for="marker-size" class="form-label">Marker Size</label>
+                  <input type="range" class="form-range" id="marker-size" min="3" max="15" value="6">
+                </div>
+                <div class="mb-3">
+                  <label for="tx-filter" class="form-label">Transmitters</label>
+                  <select class="form-select" id="tx-filter">
+                    <option value="all" selected>Show all</option>
+                    <option value="lotw-eqsl">Show LoTW/eQSL</option>
+                    <option value="lotw">Show LoTW</option>
+                    <option value="eqsl">Show eQSL</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="worked-timeout" class="form-label">Worked markers timeout</label>
+                  <select class="form-select" id="worked-timeout">
+                    <option value="none" selected>None</option>
+                    <option value="1w">1 week</option>
+                    <option value="2w">2 weeks</option>
+                    <option value="1m">1 month</option>
+                    <option value="2m">2 months</option>
+                    <option value="3m">3 months</option>
+                    <option value="6m">6 months</option>
+                    <option value="1y">1 year</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="sparkly-minutes" class="form-label">Minutes for Sparkly markers</label>
+                  <input type="number" class="form-control" id="sparkly-minutes" value="10" min="1" max="60">
+                </div>
+
+                <hr>
+                <h5>Map & Units</h5>
+                <div class="mb-3">
+                  <label for="dist-unit" class="form-label">Distance units</label>
+                  <select class="form-select" id="dist-unit">
+                    <option value="auto" selected>Automatic</option>
+                    <option value="miles">Miles</option>
+                    <option value="km">Kilometers</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="night-darkness" class="form-label">Night shadow darkness (0-1)</label>
+                  <input type="number" class="form-control" id="night-darkness" value="0.65" min="0" max="1"
+                    step="0.05">
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="save-options">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>

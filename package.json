@@ -1,0 +1,21 @@
+{
+  "name": "pskreporter",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.1.11"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "arc.js": "^1.0.0",
+    "bootstrap": "^5.3.8",
+    "jquery": "^4.0.0",
+    "ol": "^10.8.0",
+    "ol-mapbox-style": "^13.3.0",
+    "proj4": "^2.20.2"
+  }
+}
