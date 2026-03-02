@@ -114,7 +114,6 @@ class MarkerManager {
         if (timestamp > 0) {
             const ageMinutes = (Date.now() / 1000 - timestamp) / 60;
             if (ageMinutes < this.sparklyMinutes) {
-                scale *= 1.2; // Brighter/Larger sparkly effect
                 opacity = 1.0;
             } else {
                 opacity = 0.8;
