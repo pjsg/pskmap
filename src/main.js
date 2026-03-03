@@ -4,7 +4,7 @@ import { Modal } from 'bootstrap';
 import MapController from './MapController';
 import MarkerManager from './MarkerManager';
 import { parseLocator } from './utils/locator';
-import { initBandmap, getColorForFreq, BAND_COLORS } from './utils/bands';
+import { initBandmap, getColorForFreq, getColorsForBands, BAND_COLORS } from './utils/bands';
 
 // Use relative paths to leverage the Vite proxy during development
 const BASE_URL = '';
@@ -96,8 +96,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateGlobalStats();
     setInterval(updateGlobalStats, 60000);
 
+    const showMonitors = async () => {
+        const response = await fetch(`${BASE_URL}/api/monitors/full`);
+        const data = await response.json();
+        mapController.clearMarkers();
+        data.monitors.forEach(monitor => {
+            let coords = parseLocator(monitor.locator);
+            mapController.addMarker(coords[0], coords[1], {
+                color: getColorsForBands(monitor.bands.split(',')),
+                marking: 'monitor',
+                isLarge: true,
+                data: monitor
+            });
+        });
+    }
+
     const performSearch = async () => {
-        const callsign = document.getElementById('callsign').value.trim();
+        const callsign = document.getElementById('callsign').value.trim() || 'ZZZZZ';
         const band = document.getElementById('selectband').value;
         const mode = document.getElementById('selectmode').value;
         const timerange = document.getElementById('selecttimerange').value;
@@ -115,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         goBtn.textContent = 'Searching...';
 
         try {
-            let query = `flowStartSeconds=-${timerange}&statistics=1&json=1`;
+            let query = `flowStartSeconds=-${timerange}&statistics=1&json=1&rronly=1`;
 
             if (txrx === 'rx') {
                 query += `&receiverCallsign=${encodeURIComponent(callsign)}`;
@@ -141,7 +156,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             reports.forEach(rx => {
                 // Filtering
-                if (currentOptions['hide-faint'] && (parseInt(rx.sNR || rx.snr) < 0)) return;
                 // 'hide-no-reports' is usually for monitors, let's skip for now or assume monitors always have data in this context
 
                 // Determine which location to show. 
@@ -199,7 +213,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            reccntSpan.textContent = (data.sequenceNumber || reports.length).toLocaleString();
+            if (!reports.length) {
+                await showMonitors();
+            }
+
+            reccntSpan.textContent = data.lastSequenceNumber.toLocaleString();
 
             // Update Monitoring Status
             let statusHtml = `Monitoring <strong>${callsign || 'anyone'}</strong>`;
@@ -234,6 +252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             goBtn.textContent = 'Go!';
         }
     };
+
+    performSearch();
 
     goBtn.addEventListener('click', () => {
         performSearch();

@@ -71,6 +71,15 @@ export function getColorForBand(band) {
 }
 
 /**
+ * Gets the colors for a list of bands
+ * @param {Array<string>} bands Array of band names.
+ * @returns {Array<string>} Array of hex colors (without #).
+ */
+export function getColorsForBands(bands) {
+    return bands.map(band => getColorForBand(band));
+}
+
+/**
  * Gets the color for a given frequency.
  * @param {number} freq Frequency in Hz.
  * @returns {string} Hex color (without #).

@@ -14,13 +14,13 @@ export function parseLocator(loc) {
 
     for (let i = 0; i < loc.length; i++) {
         const ind = i & 1;
-        const isNumeric = i >= 2 && i <= 3;
+        const isNumeric = i & 2;
         const fac = isNumeric ? 10 : (i >= 4 ? 24 : 18);
         const base = isNumeric ? 48 : 65;
         const c = loc.charCodeAt(i);
 
         v[ind].f /= fac;
-        v[ind].v += (c - base) * v[ind].f;
+        v[ind].v += ((c - base) & 31) * v[ind].f;
     }
 
     for (let i = 0; i < 2; i++) {
