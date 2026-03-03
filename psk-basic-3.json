@@ -10,6 +10,15 @@
     "openmaptiles:mapbox:source:url": "mapbox://openmaptiles.4qljc88t"
   },
   "sources": {
+    "natural_earth_shaded_relief": {
+      "type": "raster",
+      "tiles": [
+        "https://klokantech.github.io/naturalearthtiles/tiles/natural_earth_2_shaded_relief.raster/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "maxzoom": 6,
+      "attributions": "© Natural Earth"
+    },
     "openmaptiles": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet"
@@ -23,6 +32,39 @@
       "type": "background",
       "paint": {
         "background-color": "rgb(239,239,239)"
+      }
+    },
+    {
+      "id": "natural_earth",
+      "type": "raster",
+      "source": "natural_earth_shaded_relief",
+      "minzoom": 0,
+      "maxzoom": 12,
+      "layout": {
+        "visibility": "visible"
+      },
+      "paint": {
+        "raster-opacity": {
+          "base": 1.5,
+          "stops": [
+            [
+              0,
+              0.8
+            ],
+            [
+              5,
+              0.4
+            ],
+            [
+              6,
+              0.25
+            ],
+            [
+              7,
+              0.15
+            ]
+          ]
+        }
       }
     },
     {

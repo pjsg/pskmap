@@ -74,7 +74,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error('Error loading bands', e); }
     };
 
-    await loadBands();
+    const loadModes = async () => {
+        try {
+            const response = await fetch(`${BASE_URL}/api/modes`);
+            const modesData = await response.json();
+            const selectMode = document.getElementById('selectmode');
+            if (Array.isArray(modesData.modes)) {
+                // Wipe out the existing entries
+                selectMode.innerHTML = '<option value="all">All modes</option>';
+                modesData.modes.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.mode;
+                    opt.textContent = item.mode;
+                    selectMode.appendChild(opt);
+                });
+            }
+        } catch (e) { console.error('Error loading modes', e); }
+    };
+
+    Promise.all([loadBands(), loadModes()]);
     updateGlobalStats();
     setInterval(updateGlobalStats, 60000);
 
