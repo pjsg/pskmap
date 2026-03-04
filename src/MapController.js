@@ -165,8 +165,8 @@ class MapController {
                 const props = feature.getProperties();
                 this.showPopup(props);
 
-                // Show line on hover if not in 'linesAlways' mode
-                if (!this.hideLines && !this.linesAlways && props.senderLat) {
+                // Show great-circle line on hover only when not over the entered-callsign marker
+                if (!this.hideLines && !this.linesAlways && !props.isEnteredCallsign && props.senderLat) {
                     this.clearLines();
                     const sLat = parseFloat(props.senderLat);
                     const sLon = parseFloat(props.senderLng);

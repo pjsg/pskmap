@@ -50,7 +50,7 @@ class MarkerManager {
         if (this.showSNR && snr != null) {
             snrSvg = `<text x="1800" y="1200" font-family="Arial" font-size="500" fill="#000" font-weight="bold">${snr}</text>`;
         }
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="600 400 2500 1300" height="24" width="46">
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="600 200 2500 1700" height="24" width="46">
       <path fill="${fillColor}" stroke="#000" stroke-width="90" d="m1174,1873c-38-190-107-348-189-495-61-108-132-209-198-314-21-35-40-72-62-109-42-73-76-157-74-267,2-107,33-193,78-264,73-115,197-210,362-235,135-20,262,14,352,66,73,43,130,100,173,168,45,70,76,154,78,263,1,55-7,107-20,150-13,43-33,79-52,118-36,75-82,144-127,214-136,206-264,417-320,706z"/>
       ${this.markerSvg[marking] || ''}
       ${snrSvg}
@@ -66,7 +66,7 @@ class MarkerManager {
             snrSvg = `<text x="1800" y="1200" font-family="Arial" font-size="500" fill="#000" font-weight="bold">${snr}</text>`;
         }
 
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="600 400 2500 1300" height="32" width="60">
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="600 200 2500 1700" height="32" width="60">
       ${pattern}
       <path fill="${fill}" stroke="#000" stroke-width="90" d="m1174,1873c-38-190-107-348-189-495-61-108-132-209-198-314-21-35-40-72-62-109-42-73-76-157-74-267,2-107,33-193,78-264,73-115,197-210,362-235,135-20,262,14,352,66,73,43,130,100,173,168,45,70,76,154,78,263,1,55-7,107-20,150-13,43-33,79-52,118-36,75-82,144-127,214-136,206-264,417-320,706z"/>
       ${snrSvg}

@@ -111,6 +111,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Callsign input: uppercase and allow only A-Z, 0-9, /, -
+    const callsignInput = document.getElementById('callsign');
+    callsignInput.addEventListener('input', () => {
+        const filtered = callsignInput.value.toUpperCase().replace(/[^A-Z0-9\/\-]/g, '');
+        if (filtered !== callsignInput.value) {
+            callsignInput.value = filtered;
+        }
+    });
+    callsignInput.addEventListener('keypress', (e) => {
+        const key = e.key;
+        if (key.length === 1 && !/^[A-Za-z0-9\/\-]$/.test(key)) {
+            e.preventDefault();
+        }
+    });
+
     const performSearch = async () => {
         const callsign = document.getElementById('callsign').value.trim() || 'ZZZZZ';
         const band = document.getElementById('selectband').value;
@@ -154,6 +169,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const reports = data ? (data.receptionReport || data.receptionReports || []) : [];
             let latestReportTime = 0;
 
+            // When a callsign is set, we need one "home" marker at the callsign location and size others by mode:
+            // rx (received by): large at receiver (callsign), small at senders
+            // tx (sent by): small at sender (callsign), large at receivers
+            let enteredCallsignLoc = null; // { lng, lat, data } for the single marker at the entered callsign's position
+
             reports.forEach(rx => {
                 // Filtering
                 // 'hide-no-reports' is usually for monitors, let's skip for now or assume monitors always have data in this context
@@ -187,10 +207,55 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 if (!isNaN(lat) && !isNaN(lng)) {
+                    // Determine if this marker is at the "other" end (entered callsign location) and size by mode
+                    let isEnteredCallsignMarker = false;
+                    let isLarge = false;
+                    if (callsign && txrx === 'rx') {
+                        // Received by callsign: markers at senders = small; one large at receiver (callsign) added later
+                        isLarge = false;
+                        if (!enteredCallsignLoc) {
+                            const oCoords = parseLocator(otherLoc);
+                            let oLat = oCoords ? oCoords[1] : parseFloat(rx.receiverLat || rx.lat);
+                            let oLng = oCoords ? oCoords[0] : parseFloat(rx.receiverLng || rx.lng);
+                            if (isNaN(oLat)) oLat = parseFloat(rx.receiverLat);
+                            if (isNaN(oLng)) oLng = parseFloat(rx.receiverLng);
+                            if (!isNaN(oLat) && !isNaN(oLng)) {
+                                enteredCallsignLoc = { lng: oLng, lat: oLat, data: { ...rx, receiverCallsign: callsign, receiverLocator: otherLoc } };
+                            }
+                        }
+                    } else if (callsign && txrx === 'tx') {
+                        // Sent by callsign: markers at receivers = large; one small at sender (callsign) added later
+                        isLarge = true;
+                        if (!enteredCallsignLoc) {
+                            const oCoords = parseLocator(otherLoc);
+                            let oLat = oCoords ? oCoords[1] : parseFloat(rx.senderLat || rx.lat);
+                            let oLng = oCoords ? oCoords[0] : parseFloat(rx.senderLng || rx.lng);
+                            if (isNaN(oLat)) oLat = parseFloat(rx.senderLat);
+                            if (isNaN(oLng)) oLng = parseFloat(rx.senderLng);
+                            if (!isNaN(oLat) && !isNaN(oLng)) {
+                                enteredCallsignLoc = { lng: oLng, lat: oLat, data: { ...rx, senderCallsign: callsign, senderLocator: otherLoc } };
+                            }
+                        }
+                    } else if (callsign && (txrx === 'all' || !txrx)) {
+                        // Callsign associated: markers at "others" = small; one large at callsign location added later
+                        isLarge = false;
+                        if (!enteredCallsignLoc) {
+                            const oCoords = parseLocator(otherLoc);
+                            let oLat = oCoords ? oCoords[1] : NaN;
+                            let oLng = oCoords ? oCoords[0] : NaN;
+                            if (isNaN(oLat)) oLat = parseFloat(rx.receiverCallsign?.toUpperCase() === callsign.toUpperCase() ? rx.receiverLat : rx.senderLat) || rx.lat;
+                            if (isNaN(oLng)) oLng = parseFloat(rx.receiverCallsign?.toUpperCase() === callsign.toUpperCase() ? rx.receiverLng : rx.senderLng) || rx.lng;
+                            if (!isNaN(oLat) && !isNaN(oLng)) {
+                                enteredCallsignLoc = { lng: oLng, lat: oLat, data: { ...rx } };
+                            }
+                        }
+                    }
+
                     const markerColor = rx.color || getColorForFreq(rx.frequency);
                     mapController.addMarker(lng, lat, {
                         color: markerColor,
                         marking: rx.lotw == '1' ? 'lotw' : (rx.eqsl == '1' ? 'eqsl' : null),
+                        isLarge,
                         data: rx
                     });
 
@@ -218,6 +283,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             reccntSpan.textContent = data.lastSequenceNumber.toLocaleString();
+            // Add the single marker at the entered callsign's location (receiver in rx, sender in tx)
+            if (enteredCallsignLoc && callsign) {
+                const isLargeEntered = txrx === 'rx' || txrx === 'all' || !txrx; // large when callsign is receiver or "all"
+                const d = enteredCallsignLoc.data;
+                const color = d.color || getColorForFreq(d.frequency);
+                mapController.addMarker(enteredCallsignLoc.lng, enteredCallsignLoc.lat, {
+                    color,
+                    marking: d.lotw == '1' ? 'lotw' : (d.eqsl == '1' ? 'eqsl' : null),
+                    isLarge: isLargeEntered,
+                    data: { ...d, isEnteredCallsign: true }
+                });
+            }
 
             // Update Monitoring Status
             let statusHtml = `Monitoring <strong>${callsign || 'anyone'}</strong>`;
