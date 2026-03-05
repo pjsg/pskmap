@@ -252,24 +252,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const markerColor = rx.color || getColorForFreq(rx.frequency);
+                    // API sends locators only; resolve to lat/lng for great-circle line on hover
+                    const senderCoords = parseLocator(rx.senderLocator);
+                    const receiverCoords = parseLocator(rx.receiverLocator);
+                    const markerData = {
+                        ...rx,
+                        color: markerColor,
+                        ...(senderCoords && { senderLng: senderCoords[0], senderLat: senderCoords[1] }),
+                        ...(receiverCoords && { receiverLng: receiverCoords[0], receiverLat: receiverCoords[1] })
+                    };
                     mapController.addMarker(lng, lat, {
                         color: markerColor,
                         marking: rx.lotw == '1' ? 'lotw' : (rx.eqsl == '1' ? 'eqsl' : null),
                         isLarge,
-                        data: rx
+                        data: markerData
                     });
 
                     // Great-circle lines (Show Always)
                     if (currentOptions['lines-always']) {
-                        let otherCoords = parseLocator(otherLoc);
+                        const otherCoords = parseLocator(otherLoc);
                         if (otherCoords) {
-                            mapController.addLine(lng, lat, otherCoords[0], otherCoords[1]);
-                        } else {
-                            const oLat = parseFloat(rx.receiverLat || rx.senderLat);
-                            const oLng = parseFloat(rx.receiverLng || rx.senderLng);
-                            if (!isNaN(oLat) && !isNaN(oLng)) {
-                                mapController.addLine(lng, lat, oLng, oLat);
-                            }
+                            mapController.addLine(lng, lat, otherCoords[0], otherCoords[1], markerColor);
                         }
                     }
 

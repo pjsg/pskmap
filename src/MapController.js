@@ -8,6 +8,7 @@ import { fromLonLat } from 'ol/proj';
 import { apply } from 'ol-mapbox-style';
 import Feature from 'ol/Feature';
 import LineString from 'ol/geom/LineString';
+import { Style, Stroke } from 'ol/style';
 import { GreatCircle } from 'arc';
 import SunSource from './layers/SunSource';
 import MaidenheadSource from './layers/MaidenheadSource';
@@ -45,7 +46,7 @@ class MapController {
         }
     }
 
-    addLine(startLon, startLat, endLon, endLat) {
+    addLine(startLon, startLat, endLon, endLat, color) {
         if (this.hideLines) return;
 
         const start = { x: startLon, y: startLat };
@@ -53,16 +54,50 @@ class MapController {
 
         try {
             const generator = new GreatCircle(start, end);
-            const line = generator.Arc(100); // 100 points for smoothness
-            const coords = line.coords.map(c => fromLonLat(c));
-
-            const feature = new Feature({
-                geometry: new LineString(coords)
-            });
-            this.lineSource.addFeature(feature);
+            const path = generator.Arc(100, { offset: 10 });
+            const coords = [];
+            if (path.geometries) {
+                path.geometries.forEach(geom => {
+                    if (geom && geom.coords) {
+                        geom.coords.forEach(c => {
+                            if (c != null && c[0] != null && c[1] != null && !isNaN(c[0]) && !isNaN(c[1])) {
+                                coords.push(fromLonLat([c[0], c[1]]));
+                            }
+                        });
+                    }
+                });
+            }
+            if (coords.length >= 2) {
+                const strokeColor = this._normalizeLineColor(color);
+                const feature = new Feature({
+                    geometry: new LineString(coords)
+                });
+                feature.setStyle(new Style({
+                    stroke: new Stroke({
+                        color: strokeColor,
+                        width: 2
+                    })
+                }));
+                this.lineSource.addFeature(feature);
+            }
         } catch (e) {
             console.warn('Failed to draw great-circle line', e);
         }
+    }
+
+    _normalizeLineColor(color) {
+        if (!color) return 'rgba(128, 128, 128, 0.8)';
+        if (typeof color !== 'string') return 'rgba(128, 128, 128, 0.8)';
+        let hex = color;
+        if (!hex.startsWith('#')) hex = '#' + hex;
+        if (!/^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(hex)) return 'rgba(128, 128, 128, 0.8)';
+        if (hex.length === 4) {
+            hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        }
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.9)`;
     }
 
     async initMap() {
@@ -166,15 +201,13 @@ class MapController {
                 this.showPopup(props);
 
                 // Show great-circle line on hover only when not over the entered-callsign marker
-                if (!this.hideLines && !this.linesAlways && !props.isEnteredCallsign && props.senderLat) {
+                const sLat = parseFloat(props.senderLat ?? props.sender_lat);
+                const sLon = parseFloat(props.senderLng ?? props.sender_lng);
+                const rLat = parseFloat(props.receiverLat ?? props.receiver_lat);
+                const rLon = parseFloat(props.receiverLng ?? props.receiver_lng);
+                if (!this.hideLines && !this.linesAlways && !props.isEnteredCallsign && !isNaN(sLat) && !isNaN(sLon) && !isNaN(rLat) && !isNaN(rLon)) {
                     this.clearLines();
-                    const sLat = parseFloat(props.senderLat);
-                    const sLon = parseFloat(props.senderLng);
-                    const rLat = parseFloat(props.receiverLat);
-                    const rLon = parseFloat(props.receiverLng);
-                    if (!isNaN(sLat) && !isNaN(sLon) && !isNaN(rLat) && !isNaN(rLon)) {
-                        this.addLine(sLon, sLat, rLon, rLat);
-                    }
+                    this.addLine(sLon, sLat, rLon, rLat, props.color);
                 }
             } else {
                 this.map.getTargetElement().style.cursor = '';
