@@ -57,16 +57,26 @@ class MapController {
             const path = generator.Arc(100, { offset: 10 });
             const coords = [];
             if (path.geometries) {
+                var lonOffset = 0;
+                var lastLon = startLon;
                 path.geometries.forEach(geom => {
                     if (geom && geom.coords) {
-                        geom.coords.forEach(c => {
-                            if (c != null && c[0] != null && c[1] != null && !isNaN(c[0]) && !isNaN(c[1])) {
-                                coords.push(fromLonLat([c[0], c[1]]));
+                        for (let i = 0; i < geom.coords.length; i++) {
+                            if (Math.abs(lastLon - geom.coords[i][0]) > 300) {
+                                // We need to unwrap the coordinates
+                                if (geom.coords[i][0] > 0) {
+                                    lonOffset -= 360;
+                                } else {
+                                    lonOffset += 360;
+                                }
                             }
-                        });
+                            lastLon = geom.coords[i][0];
+                            coords.push(fromLonLat([geom.coords[i][0] + lonOffset, geom.coords[i][1]]));
+                        }
                     }
                 });
             }
+            // We need to make sure that when we cross the antimeridian, we continue the line on the other side of the world.
             if (coords.length >= 2) {
                 const strokeColor = this._normalizeLineColor(color);
                 const feature = new Feature({

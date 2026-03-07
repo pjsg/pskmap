@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         goBtn.textContent = 'Searching...';
 
         try {
-            let query = `flowStartSeconds=-${timerange}&statistics=1&json=1&rronly=1`;
+            let query = `flowStartSeconds=-${timerange}&statistics=1&json=1&rronly=1&statistics=1`;
 
             if (txrx === 'rx') {
                 query += `&receiverCallsign=${encodeURIComponent(callsign)}`;
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const optionsForm = document.getElementById('optionsForm');
 
     const DEFAULT_OPTIONS = {
-        'show-grid': true,
+        'show-grid': false,
         'show-night': true,
         'hide-faint': false,
         'hide-no-reports': false,
@@ -357,7 +357,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         'hide-lines': false,
         'lines-always': false,
         'no-auto-pan': false,
-        'marker-size': 6,
         'tx-filter': 'all',
         'worked-timeout': 'none',
         'sparkly-minutes': 10,
@@ -394,7 +393,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function applyOptions(options) {
-        MarkerManager.setGlobalScale(parseFloat(options['marker-size']) / 6);
         mapController.setLayerVisibility('grid', options['show-grid']);
         mapController.setLayerVisibility('sun', options['show-night']);
 
