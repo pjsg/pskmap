@@ -21,6 +21,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentCallsign = '';
     let refreshTimer = null;
 
+    let currentReccnt = 0;
+    let reccntRate = 0;
+    let lastAnimationTime = Date.now();
+
+    function updateReccnt(newTotal) {
+        if (!newTotal) return;
+        const now = Date.now();
+
+        if (!currentReccnt) {
+            currentReccnt = newTotal;
+            reccntSpan.textContent = Math.floor(currentReccnt).toLocaleString();
+            lastAnimationTime = now;
+            return;
+        }
+
+        // Only update rate if the new total is actually higher
+        if (newTotal > currentReccnt) {
+            // How many records arrived since we last animated them?
+            // Actually, a better proxy for rate if we are trailing:
+            // Just look at how much we jumped since the *real* currentReccnt vs where we are.
+            // A simple approach: we want to reach (newTotal + (estimated new records for next 6 minutes))
+            // But an even simpler approach is just to measure the true rate between fetch intervals.
+
+            // Since we know this is called roughly every 5 minutes (300,000ms):
+            // We can just estimate rate as (newTotal - currentReccnt) / 300000ms.
+            // Or better yet, we simply let the animation continue at whatever rate it takes to 
+            // naturally cross `newTotal` in the next 5 mins.
+            // If we assume a 5 minute interval, then (newTotal - actual value 5 mins ago) is the rate.
+
+            // To smooth it:
+            reccntRate = (newTotal - currentReccnt) / 300000; // records per millisecond to catch up to newTotal in 5 mins
+        }
+
+        // Instead of setting a hard target, we just let it roll.
+        // We will never STOP, we just keep adding reccntRate * dt.
+    }
+
+    function animateReccnt() {
+        requestAnimationFrame(animateReccnt);
+        const now = Date.now();
+        const dt = now - lastAnimationTime;
+        lastAnimationTime = now;
+
+        if (dt > 1000) return; // Prevent huge jumps if tab was backgrounded
+        if (reccntRate <= 0) return;
+
+        currentReccnt += reccntRate * dt;
+        reccntSpan.textContent = Math.floor(currentReccnt).toLocaleString();
+    }
+
+    requestAnimationFrame(animateReccnt);
+
     // --- Helper Functions ---
 
     function formatTimeAgo(seconds) {
@@ -51,6 +103,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 updateBandDistribution(data.stats, data.total);
                 // Remove the d-none class from the info bar.
                 infoBar.classList.remove('d-none');
+            }
+            if (data && data.lastSequenceNumber) {
+                updateReccnt(data.lastSequenceNumber);
             }
         } catch (e) { console.error('Stats fetch failed', e); }
     }
@@ -94,7 +149,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     Promise.all([loadBands(), loadModes()]);
     updateGlobalStats();
-    setInterval(updateGlobalStats, 60000);
+    let globalStatsTimer = setInterval(() => {
+        if (!document.hidden) updateGlobalStats();
+    }, 60000);
 
     const showMonitors = async () => {
         const response = await fetch(`${BASE_URL}/api/monitors/full`);
@@ -285,7 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await showMonitors();
             }
 
-            reccntSpan.textContent = data.lastSequenceNumber.toLocaleString();
+            updateReccnt(data.lastSequenceNumber);
             // Add the single marker at the entered callsign's location (receiver in rx, sender in tx)
             if (enteredCallsignLoc && callsign) {
                 const isLargeEntered = txrx === 'rx' || txrx === 'all' || !txrx; // large when callsign is receiver or "all"
@@ -335,10 +392,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     performSearch();
 
+    let lastSearchTime = Date.now();
     goBtn.addEventListener('click', () => {
         performSearch();
+        lastSearchTime = Date.now();
         if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(performSearch, 300000);
+        refreshTimer = setInterval(() => {
+            if (!document.hidden) {
+                performSearch();
+                lastSearchTime = Date.now();
+            }
+        }, 300000);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const now = Date.now();
+            // If we missed a 5-minute search window, do it now
+            if (refreshTimer && now - lastSearchTime > 300000) {
+                performSearch();
+                lastSearchTime = now;
+            }
+            // If we missed a 1-minute stats window, update them
+            // Simple approach: just hit it unconditionally when becoming visible to ensure freshness
+            updateGlobalStats();
+        }
     });
 
     // --- Display Options Logic ---
@@ -449,9 +527,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let html = `<div><strong>${isMonitor ? 'Monitor: ' : ''}${callsign}</strong>`;
         if (locator) html += ` <span class="text-muted">(${locator})</span>`;
-        if (props.region || props.DXCC || props.receiverDXCC) {
-            const country = props.region || props.DXCC || props.receiverDXCC;
+
+        let country = props.region || props.DXCC || props.receiverDXCC || props.dx_country || '';
+        if (country) {
+            // Include regionName if it exists and doesn't exactly match the country string
+            if (props.regionName && props.regionName.toLowerCase() !== country.toLowerCase()) {
+                country = `${props.regionName}, ${country}`;
+            }
             html += `<br><small>${country}</small>`;
+        } else if (props.regionName) {
+            html += `<br><small>${props.regionName}</small>`;
+        }
+
+        if (isMonitor && props.decoderSoftware) {
+            html += `<br><small class="text-muted">${props.decoderSoftware}</small>`;
         }
         if (!isMonitor) {
             html += `<br>Rcvd from <strong>${props.senderCallsign}</strong>`;
