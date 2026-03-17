@@ -539,14 +539,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (locator) html += ` <span class="text-muted">(${locator})</span>`;
 
         let country = props.region || props.DXCC || props.receiverDXCC || props.dx_country || '';
-        if (country) {
-            // Include regionName if it exists and doesn't exactly match the country string
-            if (props.regionName && props.regionName.toLowerCase() !== country.toLowerCase()) {
-                country = `${props.regionName}, ${country}`;
-            }
-            html += `<br><small>${escapeHTML(country)}</small>`;
-        } else if (props.regionName) {
+        if (props.regionName) {
             html += `<br><small>${escapeHTML(props.regionName)}</small>`;
+        } else if (country) {
+            html += `<br><small>${escapeHTML(country)}</small>`;
         }
 
         if (isMonitor && props.decoderSoftware) {
