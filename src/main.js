@@ -75,6 +75,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Helper Functions ---
 
+    function escapeHTML(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function formatTimeAgo(seconds) {
         if (seconds < 60) return `${Math.floor(seconds)} seconds`;
         if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
@@ -89,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         sortedBands.forEach(([band, count]) => {
             const color = BAND_COLORS[band] || '808080';
-            html += `<span title="${band}" style="color: #${color}; border-left: 4px solid #${color}; padding-left: 4px; border-radius: 2px; font-weight: 500;">${count} on ${band}</span>`;
+            html += `<span title="${escapeHTML(band)}" style="color: #${color}; border-left: 4px solid #${color}; padding-left: 4px; border-radius: 2px; font-weight: 500;">${count} on ${escapeHTML(band)}</span>`;
         });
         bandDistribution.innerHTML = html;
         activeMonitorsSpan.textContent = `There are ${total.toLocaleString()} active monitors:`;
@@ -519,10 +529,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Infobox Formatting ---
     mapController.onPopupRequest = (props) => {
         const isMonitor = !props.senderCallsign;
-        const callsign = props.callsign || props.receiverCallsign || 'Unknown';
-        const locator = props.locator || props.receiverLocator || '';
+        const callsign = escapeHTML(props.callsign || props.receiverCallsign || 'Unknown');
+        const locator = escapeHTML(props.locator || props.receiverLocator || '');
         const frequency = props.frequency ? (parseFloat(props.frequency) / 1000000).toFixed(3) : null;
-        const mode = props.mode || '';
+        const mode = escapeHTML(props.mode || '');
         const snr = props.sNR || props.snr;
 
         let html = `<div><strong>${isMonitor ? 'Monitor: ' : ''}${callsign}</strong>`;
@@ -534,17 +544,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (props.regionName && props.regionName.toLowerCase() !== country.toLowerCase()) {
                 country = `${props.regionName}, ${country}`;
             }
-            html += `<br><small>${country}</small>`;
+            html += `<br><small>${escapeHTML(country)}</small>`;
         } else if (props.regionName) {
-            html += `<br><small>${props.regionName}</small>`;
+            html += `<br><small>${escapeHTML(props.regionName)}</small>`;
         }
 
         if (isMonitor && props.decoderSoftware) {
-            html += `<br><small class="text-muted">${props.decoderSoftware}</small>`;
+            html += `<br><small class="text-muted">${escapeHTML(props.decoderSoftware)}</small>`;
         }
         if (!isMonitor) {
-            html += `<br>Rcvd from <strong>${props.senderCallsign}</strong>`;
-            if (props.senderLocator) html += ` (${props.senderLocator})`;
+            html += `<br>Rcvd from <strong>${escapeHTML(props.senderCallsign)}</strong>`;
+            const senderLoc = escapeHTML(props.senderLocator || '');
+            if (senderLoc) html += ` (${senderLoc})`;
 
             // Distance calculation
             const sLat = parseFloat(props.senderLat);

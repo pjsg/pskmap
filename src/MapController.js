@@ -148,7 +148,7 @@ class MapController {
         this.maidenheadSource = new MaidenheadSource();
         this.layers.grid = new ImageLayer({
             source: this.maidenheadSource,
-            visible: true
+            visible: false
         });
 
         this.layers.markers = new VectorLayer({
